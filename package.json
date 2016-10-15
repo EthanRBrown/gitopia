@@ -1,7 +1,7 @@
 {
   "name": "git-utils",
   "version": "1.0.0",
-  "description": "Yet another Git wrapper.  The best, though!",
+  "description": "Yet another Git wrapper.  Aiming to be a great one, though!",
   "main": "dist/git-utils.js",
   "scripts": {
     "test": "node tests/git-utils.js | faucet",
