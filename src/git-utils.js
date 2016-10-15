@@ -44,22 +44,36 @@ module.exports = function(options) {
         commits: {
             cmds: ['log'],
             fn(gitoutput) {
+                console.log('>> in commit, gitoutput keys: ', Object.keys(gitoutput));
                 return gitoutput.log
                     .split('\n')
                     .map(parseLogLine);
             },
         },
 
+        tagsWithCommit: {
+            deps: [ "commits" ],
+            fn(gitoutput) {
+                console.log('>> in tagsWithCommit, gitoutput keys: ', Object.keys(gitoutput));
+                console.log('>> this.commits(): ', this.commits(gitoutput));
+                return this.commits(gitoutput)
+                    .reduce((a, c) => {
+                        for(let t of c.tags) a.push([t, c]);
+                        return a;
+                    }, []);
+            },
+        },
+
         commitsByTag: {
             deps: [ "commits" ],
-            fn() {
-                return this.commits()
+            fn(gitoutput) {
+                return this.commits(gitoutput)
                     .reduce((a, c) => {
                         a.splice.apply(a, [a.length, 0].concat(c.tags.map(t => {
                             return { 
                                 tag: t,
                                 hash: c.hash,
-                                isHEAD: c.names.indexOf('HEAD') >= 0
+                                isHEAD: c.names.indexOf('HEAD') >= 0,
                             };
                         })));
                         return a;
@@ -69,16 +83,14 @@ module.exports = function(options) {
 
         commitsBySemver: {
             deps: [ "commitsByTag" ],
-            fn() {
+            fn(gitoutput) {
                 return this.commitsByTag(gitoutput)
                     byTag.filter(c => semver.valid(c.tag)).sort((a, b) => semver.compare(a.tag, b.tag));
             },
         },
 
         isDirty: {
-            cmds: {
-                status: 'git status --porcelain',
-            },
+            cmds: [ "status" ],
             fn(gitoutput) {
                 const re = new RegExp('^[MADRCU' + (options.strict ? '?' : '') + ']');
                 return gitoutput.status
@@ -91,40 +103,52 @@ module.exports = function(options) {
 
     const gitExports = { sync: {} };
 
+    const thisObj = {};
+
     for(let fnName in gitFunctions) {
 
-        function getCmds(gitFunctions, fnName, cmds) {
+        if(fnName === 'sync') throw new Error('"sync" is the one invalid tag for a git function!');
+
+        // copy function straight up into thisObj
+        thisObj[fnName] = gitFunctions[fnName].fn;
+
+        function getCmdKeys(gitFunctions, fnName, cmdKeys) {
+            if(!cmdKeys) cmdKeys = new Set();
             const fn = gitFunctions[fnName];
-            if(!cmds) cmds = new Set();
-            if(fn.cmds) fn.cmds.forEach(cmd => cmds.add(cmd));
-            if(fn.deps) fn.deps.forEach(dep => getCmds(gitFunctions, dep, cmds));
-            console.log(...cmds.values());
-            //return ...cmds.values();
-            return cmds.values();
+            if(fn.cmds) fn.cmds.forEach(cmd => cmdKeys.add(cmd));
+            if(fn.deps) fn.deps.forEach(dep => getCmdKeys(gitFunctions, dep, cmdKeys));
+            return [...cmdKeys.values()];
         }
 
-        console.log('>>> processing ' + fnName + '...');
-        console.log('>>> getCmds: ' + getCmds(gitFunctions, fnName));
-        //getCmds(gitFunctions, fnName).forEach(cmd => console.log('\t' + cmd));
+        const cmdKeys = getCmdKeys(gitFunctions, fnName);
+
+        gitExports[fnName] = function() {
+            const args = Array.prototype.slice.call(arguments);
+            const opts = args.shift();
+            return Promise.all(
+                cmdKeys.map(cmdKey => 
+                    options.execGit(gitCmdLibrary[cmdKey], opts)
+                        .then(output => [cmdKey, output])
+                )
+            ).then(outputs => {
+                // convert arrays into dictionary
+                const gitoutput = outputs.reduce((a, x) => { a[x[0]] = x[1]; return a; }, {});
+                // internally, we can use the .sync functions...because after we've run all the git commands,
+                // the async part has been taken care of!
+                return gitFunctions[fnName].fn.apply(thisObj, [gitoutput].concat(args));
+            });
+        }
+
+        gitExports.sync[fnName] = function() {
+            const args = Array.prototype.slice.call(arguments);
+            const opts = args.shift();
+            const gitoutput = cmdKeys.map(cmdKey => options.execGitSync(gitCmdLibrary[cmdKey], opts))
+                // convert arrays into dictionary
+                .reduce((a, x) => { a[x[0]] = x[1]; return a; }, {});
+            return gitFunctions[fnName].fn.apply(thisObj, [gitoutput].concat(args));
+        }
     }
 
-    /*
-    git.sync = {};
-    for(let p in git) {
-        if(p.match(/_cmd$/) || p === 'sync') continue;
-        const orig = git[p];
-        const cmd = git[p + '_cmd'];
-        git[p] = function() {
-            const args = Array.prototype.slice.call(arguments);
-            return options.execGit(cmd, args[0]).then(data => orig.apply(null, [data].concat(args)));
-        };
-        git.sync[p] = function() {
-            const args = Array.prototype.slice.call(arguments);
-            return orig.apply(null, [options.execGitSync(cmd, args[0])].concat(args));
-        };
-    }
-
-    return git;
-    */
+    return gitExports;
 
 };
