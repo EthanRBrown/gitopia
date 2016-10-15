@@ -44,7 +44,6 @@ module.exports = function(options) {
         commits: {
             cmds: ['log'],
             fn(gitoutput) {
-                console.log('>> in commit, gitoutput keys: ', Object.keys(gitoutput));
                 return gitoutput.log
                     .split('\n')
                     .map(parseLogLine);
@@ -54,8 +53,6 @@ module.exports = function(options) {
         tagsWithCommit: {
             deps: [ "commits" ],
             fn(gitoutput) {
-                console.log('>> in tagsWithCommit, gitoutput keys: ', Object.keys(gitoutput));
-                console.log('>> this.commits(): ', this.commits(gitoutput));
                 return this.commits(gitoutput)
                     .reduce((a, c) => {
                         for(let t of c.tags) a.push([t, c]);
@@ -142,7 +139,7 @@ module.exports = function(options) {
         gitExports.sync[fnName] = function() {
             const args = Array.prototype.slice.call(arguments);
             const opts = args.shift();
-            const gitoutput = cmdKeys.map(cmdKey => options.execGitSync(gitCmdLibrary[cmdKey], opts))
+            const gitoutput = cmdKeys.map(cmdKey => [cmdKey, options.execGitSync(gitCmdLibrary[cmdKey], opts)])
                 // convert arrays into dictionary
                 .reduce((a, x) => { a[x[0]] = x[1]; return a; }, {});
             return gitFunctions[fnName].fn.apply(thisObj, [gitoutput].concat(args));

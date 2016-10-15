@@ -1,7 +1,6 @@
 'use strict';
 
 const tape = require('tape');
-const git = require('../dist/git-utils.js');
 
 const fakeGitOutputs = {
 'git log --pretty=format:%H%d':
@@ -22,23 +21,20 @@ dc2b8f8a5dccfbfe8f79ab6bd9ac489a20d8afb4 (tag: v1.0.1)
 ?? sample.js`
 };
 
-const gitOpts = {
+const git = require('../dist/git-utils.js')({
     execGit(cmd) {
         return new Promise(resolve => {
             resolve(fakeGitOutputs[cmd]);
         });
-    }
-};
+    },
+    execGitSync(cmd) {
+        return fakeGitOutputs[cmd];
+    },
+});
 
 tape('commits', t => {
     t.plan(5);
-    git({
-        execGit(cmd) {
-            return new Promise(resolve => {
-                resolve(fakeGitOutputs[cmd]);
-            });
-        }
-    }).commits().then(commits => {
+    git.commits().then(commits => {
         t.equals(commits.length, 11, 'Incorrect number of commits');
         t.assert(commits[0].names.indexOf('HEAD') >= 0, 'First commit should be HEAD');
         t.equals(commits[3].hash, '2c2f334ae83537b86ae7c011bfae0dea056264d4', 'Expected hash value for commit 4 not found');
@@ -47,9 +43,19 @@ tape('commits', t => {
     });
 });
 
+tape('commitsSync', t => {
+    t.plan(5);
+    const commits = git.sync.commits();
+    t.equals(commits.length, 11, 'Incorrect number of commits');
+    t.assert(commits[0].names.indexOf('HEAD') >= 0, 'First commit should be HEAD');
+    t.equals(commits[3].hash, '2c2f334ae83537b86ae7c011bfae0dea056264d4', 'Expected hash value for commit 4 not found');
+    t.assert(commits[6].tags.indexOf('v1.0.2-alpha.0') >= 0, 'Commit 7 did not have semver tag as expected');
+    t.assert(commits[5].tags.indexOf('NOT_SEMVER') >= 0, 'Commit 6 did not have non-semver tag as expected');
+});
+
 tape('tagsWithCommit', t => {
     t.plan(4);
-    git(gitOpts).tagsWithCommit().then(tagsWithCommit => {
+    git.tagsWithCommit().then(tagsWithCommit => {
         t.assert(tagsWithCommit[0][0] === 'NOT_SEMVER', 'First tag is not correct');
         t.assert(tagsWithCommit[1][0] === 'v1.0.2-alpha.1', 'Second tag is not correct');
         t.assert(tagsWithCommit[0][1] === tagsWithCommit[1][1], 'First and second tags should point to the same commit');
