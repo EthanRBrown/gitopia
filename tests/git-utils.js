@@ -60,8 +60,15 @@ tape('tagsWithCommit', t => {
         t.assert(tagsWithCommit[1][0] === 'v1.0.2-alpha.1', 'Second tag is not correct');
         t.assert(tagsWithCommit[0][1] === tagsWithCommit[1][1], 'First and second tags should point to the same commit');
         t.assert(tagsWithCommit[4][0] === 'v1.0.0', 'Fifth tag is not correct');
-    }).catch(err => {
-        console.error(err);
     });
 });
 
+tape('semverTagsWithCommit', t => {
+    t.plan(4);
+    git.semverTagsWithCommit().then(twc => {
+        t.assert(!twc.some(x => x.tag === 'NOT_SEMVER'), 'Non-semver tag included');
+        t.equals(twc[0][0], 'v1.0.2-alpha.1', 'First tag is not correct');
+        t.equals(twc[1][0], 'v1.0.2-alpha.0', 'Second tag is not correct');
+        t.equals(twc[2][0], 'v1.0.1', 'Third tag is not correct');
+    });
+});

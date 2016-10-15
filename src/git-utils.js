@@ -61,6 +61,14 @@ module.exports = function(options) {
             },
         },
 
+        semverTagsWithCommit: {
+            deps: [ "tagsWithCommit" ],
+            fn(gitoutput) {
+                return this.tagsWithCommit(gitoutput)
+                    .filter(([tag, c]) => semver.valid(tag));
+            },
+        },
+
         commitsByTag: {
             deps: [ "commits" ],
             fn(gitoutput) {
