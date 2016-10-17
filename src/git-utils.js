@@ -2,7 +2,6 @@
 
 const exec = require('child_process').exec;
 const execSync = require('child_process').execSync;
-const commitsCmd = 'git log --pretty=format:%H%d';
 const semver = require('semver');
 
 module.exports = function(options) {
