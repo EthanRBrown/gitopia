@@ -21,7 +21,7 @@ dc2b8f8a5dccfbfe8f79ab6bd9ac489a20d8afb4 (tag: v1.0.1)
 ?? sample.js`
 };
 
-const git = require('../dist/git-utils.js')({
+const git = require('../dist/gitopia.js')({
     execGit(cmd) {
         return new Promise(resolve => {
             resolve(fakeGitOutputs[cmd]);

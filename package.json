@@ -1,15 +1,16 @@
 {
-  "name": "git-utils",
-  "version": "1.0.0",
+  "name": "gitopia",
+  "version": "1.0.0-alpha.0",
   "description": "Yet another Git wrapper.  Aiming to be a great one, though!",
-  "main": "dist/git-utils.js",
+  "main": "dist/gitopia.js",
   "scripts": {
-    "test": "node tests/git-utils.js | faucet",
+    "test": "node tests/gitopia.js | faucet",
     "build": "babel src -d dist"
   },
-  "keywords": [],
-  "author": "Ethan Brown",
+  "keywords": ["git", "version control"],
+  "author": "Ethan Brown <ethan.brown@popart.com>",
   "license": "(MIT OR GPL-3.0)",
+  "repository" : "EthanRBrown/gitopia",
   "dependencies": {
     "semver": "^5.3.0"
   },
